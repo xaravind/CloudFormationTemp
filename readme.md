@@ -2,12 +2,12 @@
 
 Provision **two isolated VPCs** (Internal & Client), launch **public and private EC2 instances** in each, and **enable secure cross-VPC communication** between private instances via **VPC Peering**, using only **CloudFormation templates**.
 
-###  Architecture Diagram
 
-![VPC Demo]([https://media.giphy.com/media/3ohs4BSacFKI7A717y/giphy.gif](https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExcWF5YzR5NGw3eXc0cXk2MmNlNG1lNnRpc3dkbGgyZTJlaW9uamJoNiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/BWsnGPswZhf4hUzolG/giphy.gif
-))
+### Architecture Diagram
 
-
+<p align="center">
+  <img src="https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExcWF5YzR5NGw3eXc0cXk2MmNlNG1lNnRpc3dkbGgyZTJlaW9uamJoNiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/BWsnGPswZhf4hUzolG/giphy.gif" alt="VPC Peering Demo" width="700"/>
+</p>
 
 ---
 
