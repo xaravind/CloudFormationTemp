@@ -1,5 +1,18 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: This template launches an EC2 instance into a selected subnet within a given VPC.
+Description: >
+  This template launches an EC2 instance into a selected subnet within a given VPC.
+  It uses region-based AMI mapping to dynamically select the appropriate Amazon Linux 2 image.
+
+Mappings:
+  RegionMap:
+    us-east-1:
+      AMI: ami-0c02fb55956c7d316
+    us-west-2:
+      AMI: ami-0892d3c7ee96c0bf7
+    eu-central-1:
+      AMI: ami-0233214e13e500f77
+    ap-south-1:
+      AMI: ami-0e306788ff2473ccb
 
 Parameters:
   InstanceName:
@@ -28,10 +41,6 @@ Parameters:
     Description: The EC2 KeyPair name to enable SSH access
     Type: AWS::EC2::KeyPair::KeyName
 
-  AmiId:
-    Description: The AMI ID for the EC2 instance (e.g., Amazon Linux 2)
-    Type: AWS::EC2::Image::Id
-
 Resources:
   InstanceSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -52,13 +61,19 @@ Resources:
     Properties:
       InstanceType: !Ref InstanceType
       KeyName: !Ref KeyName
-      ImageId: !Ref AmiId
+      ImageId: !FindInMap [RegionMap, !Ref "AWS::Region", AMI]
       SubnetId: !Ref SubnetId
       SecurityGroupIds:
         - !Ref InstanceSecurityGroup
       Tags:
         - Key: Name
           Value: !Ref InstanceName
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeSize: 8
+            VolumeType: gp3
+            DeleteOnTermination: true
 
 Outputs:
   InstanceId:

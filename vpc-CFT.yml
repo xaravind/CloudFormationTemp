@@ -1,89 +1,144 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: >
-  This template launches an EC2 instance into a selected subnet within a given VPC.
-  It uses region-based AMI mapping to dynamically select the appropriate Amazon Linux 2 image.
-
-Mappings:
-  RegionMap:
-    us-east-1:
-      AMI: ami-0c02fb55956c7d316
-    us-west-2:
-      AMI: ami-0892d3c7ee96c0bf7
-    eu-central-1:
-      AMI: ami-0233214e13e500f77
-    ap-south-1:
-      AMI: ami-0e306788ff2473ccb
+Description: This template deploys a VPC, with a public and a private subnets spread
+  across two Availability Zones. It deploys an internet gateway, with a default
+  route on the public subnets. It deploys a  NAT gateways,
+  and default routes for them in the private subnets.
+# Resources section
 
 Parameters:
-  InstanceName:
-    Description: Name tag for the EC2 instance
+  Name:
+    Description: A name that is prefixed to resource names
     Type: String
 
-  VPCId:
-    Description: The VPC ID where the instance will be launched
-    Type: AWS::EC2::VPC::Id
-
-  SubnetId:
-    Description: The Subnet ID where the instance will be launched (public or private)
-    Type: AWS::EC2::Subnet::Id
-
-  InstanceType:
-    Description: EC2 instance type
+  VpcCIDR:
+    Description: Please enter the IP range (CIDR notation) for this VPC
     Type: String
-    Default: t2.micro
-    AllowedValues:
-      - t2.micro
-      - t2.small
-      - t3.micro
-      - t3.small
+    Default: 10.0.0.0/16
 
-  KeyName:
-    Description: The EC2 KeyPair name to enable SSH access
-    Type: AWS::EC2::KeyPair::KeyName
+  PublicSubnetCIDR:
+    Description: Please enter the IP range (CIDR notation) for the public subnet in the first Availability Zone
+    Type: String
+    Default: 10.0.0.0/24
+
+  PrivateSubnetCIDR:
+    Description: Please enter the IP range (CIDR notation) for the private subnet in the first Availability Zone
+    Type: String
+    Default: 10.0.16.0/24
 
 Resources:
-  InstanceSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
+  VPC:
+    Type: AWS::EC2::VPC
     Properties:
-      GroupDescription: Enable SSH access
-      VpcId: !Ref VPCId
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 22
-          ToPort: 22
-          CidrIp: 0.0.0.0/0
+      CidrBlock: !Ref VpcCIDR
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
       Tags:
         - Key: Name
-          Value: !Sub "${InstanceName}-sg"
+          Value: !Sub "${Name}-vpc"
 
-  EC2Instance:
-    Type: AWS::EC2::Instance
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
     Properties:
-      InstanceType: !Ref InstanceType
-      KeyName: !Ref KeyName
-      ImageId: !FindInMap [RegionMap, !Ref "AWS::Region", AMI]
-      SubnetId: !Ref SubnetId
-      SecurityGroupIds:
-        - !Ref InstanceSecurityGroup
       Tags:
         - Key: Name
-          Value: !Ref InstanceName
-      BlockDeviceMappings:
-        - DeviceName: /dev/xvda
-          Ebs:
-            VolumeSize: 8
-            VolumeType: gp3
-            DeleteOnTermination: true
+          Value: !Sub "${Name}-igw"
+
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      CidrBlock: !Ref PublicSubnetCIDR
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${Name}-public-subnet"
+
+  PrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 1, !GetAZs  '' ]
+      CidrBlock: !Ref PrivateSubnetCIDR
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub "${Name}-private-Subnet"
+
+  NatGatewayEIP:
+    Type: AWS::EC2::EIP
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      Domain: vpc
+
+  NatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatGatewayEIP.AllocationId
+      SubnetId: !Ref PublicSubnet
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub "${Name}-pub-rtb"
+
+  DefaultPublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet
+
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub "${Name}-pvt-rtb"
+
+  DefaultPrivateRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway
+
+  PrivateSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref PrivateSubnet
 
 Outputs:
-  InstanceId:
-    Description: EC2 Instance ID
-    Value: !Ref EC2Instance
+  VPC:
+    Description: A reference to the created VPC
+    Value: !Ref VPC
 
-  InstancePublicIp:
-    Description: Public IP address (only if in public subnet)
-    Value: !GetAtt EC2Instance.PublicIp
+  PublicSubnets:
+    Description: A list of the public subnets
+    Value: !Ref PublicSubnet
 
-  InstancePrivateIp:
-    Description: Private IP address
-    Value: !GetAtt EC2Instance.PrivateIp
+  PrivateSubnets:
+    Description: A list of the private subnets
+    Value: !Ref PrivateSubnet
+
+  NoIngressSecurityGroup:
+    Description: Security group with no ingress rule
+    Value: !Ref NoIngressSecurityGroup
