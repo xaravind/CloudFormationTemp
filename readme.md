@@ -5,9 +5,7 @@ Provision **two isolated VPCs** (Internal & Client), launch **public and private
 
 ### Architecture Diagram
 
-<p align="center">
-  <img src="https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExcWF5YzR5NGw3eXc0cXk2MmNlNG1lNnRpc3dkbGgyZTJlaW9uamJoNiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/BWsnGPswZhf4hUzolG/giphy.gif" alt="VPC Peering Demo" width="700"/>
-</p>
+![VPC Architecture](/Workflow.gif)
 
 ---
 
