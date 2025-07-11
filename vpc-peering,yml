@@ -1,0 +1,52 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: VPC Peering between two VPCs in the same account and region
+
+Parameters:
+  VpcAId:
+    Type: String
+    Description: The ID of the first VPC (e.g., vpc-client)
+
+  VpcBId:
+    Type: String
+    Description: The ID of the second VPC (e.g., vpc-company)
+
+  VpcACidr:
+    Type: String
+    Description: CIDR block of VPC A
+
+  VpcBCidr:
+    Type: String
+    Description: CIDR block of VPC B
+
+Resources:
+  VPCPeeringConnection:
+    Type: AWS::EC2::VPCPeeringConnection
+    Properties:
+      VpcId: !Ref VpcAId
+      PeerVpcId: !Ref VpcBId
+      Tags:
+        - Key: Name
+          Value: !Sub "${VpcAId}-${VpcBId}-peering"
+
+  RouteFromVpcAToVpcB:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Select 
+        - 0
+        - !Split [ ",", !ImportValue VpcARouteTableIds ]
+      DestinationCidrBlock: !Ref VpcBCidr
+      VpcPeeringConnectionId: !Ref VPCPeeringConnection
+
+  RouteFromVpcBToVpcA:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Select 
+        - 0
+        - !Split [ ",", !ImportValue VpcBRouteTableIds ]
+      DestinationCidrBlock: !Ref VpcACidr
+      VpcPeeringConnectionId: !Ref VPCPeeringConnection
+
+Outputs:
+  PeeringConnectionId:
+    Description: The ID of the VPC Peering Connection
+    Value: !Ref VPCPeeringConnection

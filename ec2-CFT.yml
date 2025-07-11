@@ -40,6 +40,15 @@ Parameters:
   KeyName:
     Description: The EC2 KeyPair name to enable SSH access
     Type: AWS::EC2::KeyPair::KeyName
+  
+  IsPublicSubnet:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: Whether the instance is in a public subnet (with public IP)
+
+Conditions:
+  IsPublic: !Equals [ !Ref IsPublicSubnet, "true" ]
 
 Resources:
   InstanceSecurityGroup:
@@ -81,6 +90,7 @@ Outputs:
     Value: !Ref EC2Instance
 
   InstancePublicIp:
+    Condition: IsPublic
     Description: Public IP address (only if in public subnet)
     Value: !GetAtt EC2Instance.PublicIp
 

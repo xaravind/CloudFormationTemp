@@ -5,6 +5,10 @@ Description: This template deploys a VPC, with a public and a private subnets sp
   and default routes for them in the private subnets.
 # Resources section
 
+#################################################################
+#                       PARAMETERS                              #
+#################################################################
+
 Parameters:
   Name:
     Description: A name that is prefixed to resource names
@@ -24,6 +28,10 @@ Parameters:
     Description: Please enter the IP range (CIDR notation) for the private subnet in the first Availability Zone
     Type: String
     Default: 10.0.16.0/24
+
+#################################################################
+#       Resources - (VPC, IGW , SUBNETS, EIP, NAT )             #
+#################################################################
 
 Resources:
   VPC:
@@ -126,6 +134,10 @@ Resources:
       RouteTableId: !Ref PrivateRouteTable
       SubnetId: !Ref PrivateSubnet
 
+#################################################################
+#                       OUTPUTS                              #
+#################################################################
+
 Outputs:
   VPC:
     Description: A reference to the created VPC
@@ -138,7 +150,3 @@ Outputs:
   PrivateSubnets:
     Description: A list of the private subnets
     Value: !Ref PrivateSubnet
-
-  NoIngressSecurityGroup:
-    Description: Security group with no ingress rule
-    Value: !Ref NoIngressSecurityGroup
