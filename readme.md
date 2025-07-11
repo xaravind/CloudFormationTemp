@@ -1,8 +1,8 @@
-**"Fully Automated VPC and EC2 Setup with VPC Peering — Powered by CloudFormation"**
+# Fully Automated VPC and EC2 Setup with VPC Peering — Powered by CloudFormation
 
 Provision **two isolated VPCs** (Internal & Client), launch **public and private EC2 instances** in each, and **enable secure cross-VPC communication** between private instances via **VPC Peering**, using only **CloudFormation templates**.
 
-### ** Architecture Diagram:**
+###  Architecture Diagram
 
 ===
 GIF image
@@ -10,21 +10,21 @@ GIF image
 
 ---
 
-### **What We'll Build — Fully Automated via CloudFormation**
+## **What We'll Build — Fully Automated via CloudFormation**
 
 With **Infrastructure as Code (IaC)** using **AWS CloudFormation**, we'll build a complete, production-like network setup **without any manual steps**:
 
-1. **Create Two VPCs** – Each with custom CIDR blocks for logical separation (e.g., `10.0.0.0/16` and `10.1.0.0/16`).
-2. **Deploy Public and Private Subnets** – In each VPC, spread across different Availability Zones.
-3. **Launch EC2 Instances** – One public and one private instance in each VPC.
-4. **Establish VPC Peering** – To enable communication between private subnets in both VPCs.
-5. **Configure Route Tables** – Modify route tables to allow secure, cross-VPC traffic flow.
+* **Create Two VPCs** – Each with custom CIDR blocks for logical separation (e.g., `10.0.0.0/16` and `10.1.0.0/16`).
+* **Deploy Public and Private Subnets** – In each VPC, spread across different Availability Zones.
+* **Launch EC2 Instances** – One public and one private instance in each VPC.
+* **Establish VPC Peering** – To enable communication between private subnets in both VPCs.
+* **Configure Route Tables** – Modify route tables to allow secure, cross-VPC traffic flow.
+* **Test file transfer** between private instances (via Bastion/Jump host).
 
-Final
- **Test file transfer** between private instances (via Bastion/Jump host)
+---
 
+## 📖 Theory at the Final Pages of PDF.
 
-##  Theory at the Final Pages of PDF.
 * What is a VPC?
 * CIDR, Subnets, NAT, IGW
 * What is VPC Peering & why we use it
@@ -33,21 +33,30 @@ Final
 
 ---
 
-Your notes are clear and straightforward! I've cleaned up the grammar, improved sentence flow slightly, and kept the tone simple and easy to understand — just like your original style. Here's the refined version:
+## Let’s Build
 
----
+### ✅ First Stage: Write CloudFormation Templates in VS Code (YAML Format)
 
-### **Let’s Build**
+CloudFormation supports both **JSON** and **YAML**, but YAML is much simpler to write and read. It is also easier compared to **Terraform**, which uses its own custom language (HCL).
 
-First Stage :- Write CloudFormation templates in your local **VS Code** using **YAML format**.
 
-CloudFormation supports both **JSON** and **YAML**, but YAML is much simpler to write and read. Unlike other languages, YAML has zero complexity in formatting. It is also easier compared to **Terraform**, which uses its own custom language (HashiCorp Configuration Language - HCL).
+Start by creating the following templates:
+
+### 1. `vpc-CFT.yml`
 
 > For this template, I used references from the official AWS documentation:
 
 > 🔗 (https://docs.aws.amazon.com/codebuild/latest/userguide/cloudformation-vpc-template.html)
 
----
+
+This template creates all required networking components for one VPC:
+
+* VPC
+* Public and Private Subnets
+* Internet Gateway (IGW)
+* NAT Gateway and Elastic IP
+* Route Tables and associations
+* Exports private route table ID for reuse
 
 ```bash
 #01-vpc-CFT.yml
@@ -203,24 +212,34 @@ Outputs:
   PrivateSubnets:
     Description: A list of the private subnets
     Value: !Ref PrivateSubnet
+
+  PrivateRouteTable:
+    Description: The Private Route Table ID for the VPC
+    Value: !Ref PrivateRouteTable
+    Export:
+      Name: !Sub "${Name}-PrivateRouteTableId"    
 ```
 ---
 
-###  **Best Practices I Followed While Writing This Template**
+### ✅ Best Practices Followed:
 
-* **Used Parameters**: So we can reuse the template multiple times just by changing values — no need to touch the actual code.
-* The template creates **all the required networking components**, including:
-
-  * VPC
-  * Public and Private Subnets
-  * Internet Gateway (IGW) and attachment to VPC
-  * Route Tables for both public and private
-  * Subnet-to-Route Table associations
-  * NAT Gateway with Elastic IP for internet access from the private subnet
+* Used **Parameters** for reusability
+* Exported private route table for importing in peering template
+* Created NAT Gateway for private subnet internet access
 
 ---
 
-> **I followed the same best practices from `vpc-CFT.yml` to create both `ec2-CFT.yml` and `vpc-peering.yml` templates.**
+### 2. `ec2-CFT.yml`
+
+This template launches EC2 instances into a selected subnet (public or private) in a given VPC.
+
+You can configure:
+
+* VPC ID
+* Subnet ID
+* Instance type
+* Key pair
+* Public/private subnet option
 
 ```bash
 AWSTemplateFormatVersion: '2010-09-09'
@@ -323,35 +342,103 @@ Outputs:
     Description: Private IP address
     Value: !GetAtt EC2Instance.PrivateIp
 ```
+---
 
-To use the above template, all you need beforehand is:
+### ✅ Best Practices Followed:
 
-* A valid **VPC**
-* An existing **EC2 key pair**
-
-Once provided, this template will automatically launch an EC2 instance into your chosen **public** or **private** subnet.
+* Used **Parameters** for reusability
+* **Mapping** for region-based AMI selection
+* **Conditions** for assigning public IP if in public subnet
+* Custom **Security Group** for SSH access
+* Defined **Block Device Mappings** for storage
+* Outputs include instance ID, private IP, and optionally public IP
 
 ---
 
-### **Best Practices I Followed While Writing This Template**
 
-* **Used Parameters** to make the template reusable across environments. You only need to provide values like VPC ID, subnet ID, instance type, and key name during launch.
+### 3. `vpc-peering.yml`
 
-* **Used Mappings** to dynamically select the correct AMI based on the region. No need to hardcode AMI IDs.
-
-* **Included Conditions** to toggle public IP assignment, allowing flexibility between public and private subnets.
-
-* **Defined a Security Group** to allow SSH (port 22) access. You can customize this for stricter rules.
-
-* **Used Block Device Mappings** to configure an 8GB `gp3` EBS volume that gets deleted on instance termination.
-
-* **Clean Outputs Section** that returns the Instance ID, Private IP (always), and Public IP (only for public subnets). Useful for validation or automation.
----
-
-Once the Templates are finished push to your Git-hub repo
+Automates VPC Peering setup and updates route tables for cross-VPC communication.
 
 ```bash
-aravi@Aravind MINGW64 ~/11_04/CloudFormationTemp (main)
+AWSTemplateFormatVersion: '2010-09-09'
+Description: VPC Peering between two VPCs in the same account and region
+
+Parameters:
+  VpcAId:
+    Type: AWS::EC2::VPC::Id
+    Description: The ID of the first VPC 
+
+  VpcBId:
+    Type: AWS::EC2::VPC::Id
+    Description: The ID of the second VPC 
+
+  VpcACidr:
+    Type: String
+    Description: CIDR block of VPC A
+
+  VpcBCidr:
+    Type: String
+    Description: CIDR block of VPC B
+
+  VpcARouteTableExportName:
+    Type: String
+    Description: Export name of VPC A's private route table 
+
+  VpcBRouteTableExportName:
+    Type: String
+    Description: Export name of VPC B's private route table 
+
+Resources:
+  VPCPeeringConnection:
+    Type: AWS::EC2::VPCPeeringConnection
+    Properties:
+      VpcId: !Ref VpcAId
+      PeerVpcId: !Ref VpcBId
+      Tags:
+        - Key: Name
+          Value: !Sub "${VpcAId}-${VpcBId}-peering"
+
+  RouteFromVpcAToVpcB:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Fn::ImportValue: !Ref VpcARouteTableExportName
+      DestinationCidrBlock: !Ref VpcBCidr
+      VpcPeeringConnectionId: !Ref VPCPeeringConnection
+
+  RouteFromVpcBToVpcA:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Fn::ImportValue: !Ref VpcBRouteTableExportName
+      DestinationCidrBlock: !Ref VpcACidr
+      VpcPeeringConnectionId: !Ref VPCPeeringConnection
+
+Outputs:
+  PeeringConnectionId:
+    Description: The ID of the VPC Peering Connection
+    Value: !Ref VPCPeeringConnection
+
+
+```
+---
+
+### ✅ Best Practices Followed:
+
+* Used **Parameters** for VPC IDs and CIDRs
+* Used `!ImportValue` for route table IDs exported in VPC stack
+* Automatically updates routes in both VPCs
+* Outputs peering connection ID
+
+---
+
+### Push Files to GitHub and S3 if needed.
+
+Use Git to push templates to a repository:
+
+```bash
+aravi@Aravind MINGW64 ~/CloudFormationTemp (main)
 $ git add . ; git commit -m "ll" ; git push
 [main 674cc30] ll
  3 files changed, 74 insertions(+), 4 deletions(-)
@@ -367,80 +454,260 @@ To https://github.com/xaravind/CloudFormationTemp.git
    b0dac60..674cc30  main -> main
 ```
 
-In this stage, we write all the required template files and push them to GitHub for version control and reuse.
+This ensures your infrastructure code is stored, trackable, and reusable.
 
-Second Stage: Launch Infra with Cloud Formation
+## ✅ Second Stage: Create VPCs with CloudFormation
+
+### Create Internal VPC
+
+1. Go to **AWS Console > CloudFormation > Create Stack**
+2. Upload `vpc-CFT.yml`
+3. Provide stack name: `Internal-vpc-stack`
+4. Fill parameters:
+
+   * Name: `Internal`
+   * PrivateSubnetCIDR: `10.0.16.0/24`
+   * PublicSubnetCIDR: `10.0.0.0/24`
+   * VpcCIDR: `10.0.0.0/16`
+5. Leave defaults, Review, and Submit
+6. Wait for `CREATE_COMPLETE`
+7. Check Resources and Outputs
+
+### Create Client VPC (Repeat Same Steps with Updated Parameters)
+
+* Stack Name: `Client-vpc-stack`
+* Name: `Client-vpc`
+* PrivateSubnetCIDR: `172.0.16.0/24`
+* PublicSubnetCIDR: `172.168.0.0/24`
+* VpcCIDR: `172.168.0.0/16`
+
+
+## ✅ Third Stage: Launch EC2 Instances with CloudFormation
+
+### Create Key Pair
+
+1. Go to **EC2 > Key Pairs > Create Key Pair**
+2. Name: `vpcPeer`
+3. Key type: `RSA`, format: `.pem`
+
+
+### Launch EC2 Instances
+
+Repeat stack creation steps using `ec2-CFT.yml`, changing the parameters:
+
+#### Internal VPC:
+
+* Public Instance:
+
+  * Stack: `Internal-ec2Pub-stack`
+  * InstanceName: `Internal-PubApp-instance`
+  * Subnet: Internal vpc public subnet
+  * IsPublicSubnet: `true`
+  * KeyName: vpcpeer
+  * VPCId: Internal vpc ID
+
+* Private Instance:
+
+  * Stack: `Internal-ec2Pvt-stack`
+  * InstanceName: `Internal-PvtDb-instance`
+  * Subnet: Internal vpc private subnet
+  * IsPublicSubnet: `false`
+  * KeyName: vpcpeer  
+  * VPCId: Internal vpc ID
+
+#### Client VPC:
+
+* Public Instance:
+
+  * Stack: `Client-ec2Pub-stack`
+  * InstanceName: `Client-PubApp-instance`
+  * Subnet: Client vpc public subnet
+  * IsPublicSubnet: `true`
+  * KeyName: vpcpeer
+  * VPCId: Client vpc ID
+
+* Private Instance:
+
+  * Stack: `Client-ec2Pvt-stack`
+  * InstanceName: `Client-PvtDb-instance`
+  * Subnet: Client vpc private subnet
+  * IsPublicSubnet: `false`
+  * KeyName: vpcpeer
+  * VPCId: Client vpc ID
+
+Go to **EC2 > Instances** to verify all 4 instances are running.
+
+
+##  Fourth Stage: SSH Access & Testing
+
+### Copy `.pem` Key to Public Instances
+
+open terminal/windows power shell 
+
+```bash
+scp -i vpcPeer.pem vpcPeer.pem ec2-user@<public-ip>:~
+```
+
+```bash
+PS C:\Users\aravi\Downloads> scp -i .\vpcPeer.pem .\vpcPeer.pem ec2-user@34.224.27.251:~
+Warning: Permanently added '34.224.27.251' (ED25519) to the list of known hosts.
+vpcPeer.pem                                                                           100% 1678     6.8KB/s   00:00
+PS C:\Users\aravi\Downloads> scp -i .\vpcPeer.pem .\vpcPeer.pem ec2-user@:54.242.134.227:~
+ED25519 key fingerprint is SHA256:+wXZNf0dPby5hrckChr4Gva9naVWagX0rb2+LXoGQMY.
+vpcPeer.pem                                                                           100% 1678     7.4KB/s   00:00
+PS C:\Users\aravi\Downloads>
+```
+
+### SSH into Public EC2
+
+```bash
+ssh -i vpcPeer.pem ec2-user@<public-dns>
+```
+
+Change key permissions if needed:
+
+```bash
+chmod 400 vpcPeer.pem
+```
+
+### SCP Key to Private EC2 from Public EC2
+
+```bash
+scp -i vpcPeer.pem vpcPeer.pem ec2-user@<private-ip>:~
+```
+
+### Jump into Private EC2 and Test Internet
+
+```bash
+ssh -i vpcPeer.pem ec2-user@<private-ip>
+sudo yum update -y
+```
+
+### Try Copying File Between Private EC2 (Expected to Fail)
+
+```bash
+scp -i vpcPeer.pem client-pvt.txt ec2-user@<other-private-ip>:~
+# Fails due to no peering connection yet
+```
+
+```bash
+[ec2-user@ip-172-168-16-210 ~]$ scp -i vpcPeer.pem client-pvt.txt ec2-user@10.0.16.56:~
+ssh: connect to host 10.0.16.56 port 22: Connection timed out
+lost connection
+[ec2-user@ip-172-168-16-210 ~]$
+```
+
+## 🌐 Fifth Stage: Enable VPC Peering
+
+### Create Peering with CloudFormation
+
+1. Go to **CloudFormation > Create Stack**
+2. Upload `vpc-peering.yml`
+3. Provide stack name: `vpc-peering-stack`
+4. Fill Parameters:
+
+   * VpcAId: `Internal VPC ID`
+   * VpcACidr: `10.0.0.0/16`
+   * VpcARouteTableExportName: `Internal-vpc-PrivateRouteTableId`
+   * VpcBId: `Client VPC ID`
+   * VpcBCidr: `172.168.0.0/16`
+   * VpcBRouteTableExportName: `Client-vpc-PrivateRouteTableId`
+5. Review and Submit
+6. Wait for `CREATE_COMPLETE`
+
+
+### Verify Route Table Updates
+
+Check route tables of both VPCs — you should see routes pointing to the peer connection.
+
+
+### Retest File Transfer Between Private Instances
+
+```bash
+scp -i vpcPeer.pem file.txt ec2-user@<peer-private-ip>:~
+# Should now succeed
+```
+
+
+---
+
+We successfully built a secure, fully automated, production-grade environment with:
+
+* Isolated VPCs
+* Public and Private Subnets
+* Bastion Hosts
+* VPC Peering
+* CloudFormation automation
 
 
 
 
+### What is a VPC and Why Do We Need It?
 
-
-
-
-###  What is a VPC and Why Do We Need It?
-
-A **VPC (Virtual Private Cloud)** is an isolated section of the AWS cloud where you can launch resources—like EC2 instances—within a logically separated network. It provides full control over:
+A **VPC (Virtual Private Cloud)** is an isolated section of the AWS cloud where you can launch AWS resources—like EC2 instances—within a logically separated network. It gives you full control over:
 
 * ✅ **IP address ranges** using CIDR (Classless Inter-Domain Routing)
 * ✅ **Subnets**, **routing**, and **internet access**
 * ✅ **Security** through Security Groups and Network ACLs
 
-In simple terms, a VPC allows you to design your own virtual data center in the cloud—with complete control over who can access what and how.
+In simple terms, a VPC lets you design your own virtual data center in the cloud. You control how resources communicate and who can access them.
 
 ---
 
-In **real-time scenarios**, every organization uses VPCs to host internal applications and services securely. Typically, employees or administrators **access VPCs through VPN connections**, **Direct Connect**, or **bastion hosts (jump servers)** for internal/private resource management.
+In **real-time environments**, every organization uses VPCs to host internal applications securely. Typically, employees and administrators connect to VPCs using **VPN**, **AWS Direct Connect**, or **bastion hosts (jump servers)** to manage private/internal resources.
 
-VPCs play a vital role in:
+VPCs are critical for:
 
-* Segregating production, staging, and development environments
-* Ensuring secure and private communication across AWS services
+* Separating production, staging, and development environments
+* Ensuring secure and private communication between AWS services
 * Supporting hybrid cloud models with on-premises integration
 
 ---
 
-###  Key VPC Components:
+### Key VPC Components:
 
-#### 🔹 Subnets:
+#### 🔹 Subnets
 
-* **Public Subnet:** A subnet whose instances can directly communicate with the internet via an Internet Gateway.
-* **Private Subnet:** A subnet that has no direct internet access. Resources inside can only access the internet via a NAT Gateway..
+* **Public Subnet:** Instances here can connect to the internet directly using an Internet Gateway.
+* **Private Subnet:** Instances here **don’t have direct internet access**. Instead, they use a NAT Gateway to access the internet.
 
-#### 🔹 Route Tables:
+#### 🔹 Route Tables
 
-* **Public Route Table:** Contains routes that direct traffic from public subnets to the Internet Gateway.
-* **Private Route Table:** Contains routes for private subnets, typically directing internet-bound traffic through a NAT Gateway.
+* **Public Route Table:** Routes public subnet traffic through the Internet Gateway.
+* **Private Route Table:** Routes private subnet traffic through the NAT Gateway to allow secure internet access.
 
-#### 🔹 Gateways:
+#### 🔹 Gateways
 
-* **Internet Gateway (IGW):** A gateway that allows instances in a public subnet to connect to the internet.
-* **NAT Gateway (NGW):** Allows instances in a private subnet to initiate outbound traffic to the internet while preventing inbound traffic from the internet.
+* **Internet Gateway (IGW):** Lets resources in public subnets access the internet.
+* **NAT Gateway (NGW):** Allows private subnet resources to access the internet **without exposing them** to incoming traffic.
 
-#### 🔹 Security Layers:
+#### 🔹 Security Layers
 
-* **Security Groups:** Virtual firewalls at the instance level.
-* **NACLs (Network ACLs):** Optional stateless firewalls at the subnet level.
-
----
-
-###  What is VPC Peering and Why Is It Used?
-
-**VPC Peering** is a networking connection between two VPCs that enables you to route traffic between them using private IPs. It’s commonly used to allow:
-
-* Communication between different environments (e.g., dev and prod)
-* File sharing between isolated networks
-* Secure cross-VPC service interaction without going over the internet
+* **Security Groups:** Instance-level virtual firewalls that control inbound and outbound rules.
+* **Network ACLs (NACLs):** Subnet-level firewalls that are stateless and used for additional filtering.
 
 ---
 
-### 🔹 AWS Services Used in This Setup:
+### What is VPC Peering and Why Is It Used?
 
-* **CloudFormation:** Automates the provisioning of infrastructure via templates (IaC).
-* **VPC:** Defines isolated network boundaries and routing.
-* **EC2:** Hosts public and private instances for secure file transfers and communication across VPCs.
+**VPC Peering** is a network connection between two VPCs that lets them route traffic using **private IP addresses**. Peering allows:
+
+* Secure communication between separate VPC environments (e.g., dev <--> prod)
+* File transfers between applications hosted in different VPCs
+* Private interaction between services **without using the internet**
+
+VPC Peering is **one-to-one**, meaning both VPCs can initiate and respond to traffic once properly routed.
 
 ---
+
+### 🔹 AWS Services Used in This Setup
+
+* **CloudFormation:** Automates infrastructure provisioning using templates (Infrastructure as Code).
+* **VPC:** Creates isolated networks for applications.
+* **EC2:** Hosts public and private instances to test cross-VPC communication and secure file transfer.
+
+---
+
 
 
 

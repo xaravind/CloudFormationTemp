@@ -146,7 +146,3 @@ Outputs:
   PublicSubnets:
     Description: A list of the public subnets
     Value: !Ref PublicSubnet
-
-  PrivateSubnets:
-    Description: A list of the private subnets
-    Value: !Ref PrivateSubnet

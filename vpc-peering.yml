@@ -3,12 +3,12 @@ Description: VPC Peering between two VPCs in the same account and region
 
 Parameters:
   VpcAId:
-    Type: String
-    Description: The ID of the first VPC (e.g., vpc-client)
+    Type: AWS::EC2::VPC::Id
+    Description: The ID of the first VPC 
 
   VpcBId:
-    Type: String
-    Description: The ID of the second VPC (e.g., vpc-company)
+    Type: AWS::EC2::VPC::Id
+    Description: The ID of the second VPC 
 
   VpcACidr:
     Type: String
@@ -17,6 +17,14 @@ Parameters:
   VpcBCidr:
     Type: String
     Description: CIDR block of VPC B
+
+  VpcARouteTableExportName:
+    Type: String
+    Description: Export name of VPC A's private route table 
+
+  VpcBRouteTableExportName:
+    Type: String
+    Description: Export name of VPC B's private route table 
 
 Resources:
   VPCPeeringConnection:
@@ -31,18 +39,16 @@ Resources:
   RouteFromVpcAToVpcB:
     Type: AWS::EC2::Route
     Properties:
-      RouteTableId: !Select 
-        - 0
-        - !Split [ ",", !ImportValue VpcARouteTableIds ]
+      RouteTableId:
+        Fn::ImportValue: !Ref VpcARouteTableExportName
       DestinationCidrBlock: !Ref VpcBCidr
       VpcPeeringConnectionId: !Ref VPCPeeringConnection
 
   RouteFromVpcBToVpcA:
     Type: AWS::EC2::Route
     Properties:
-      RouteTableId: !Select 
-        - 0
-        - !Split [ ",", !ImportValue VpcBRouteTableIds ]
+      RouteTableId:
+        Fn::ImportValue: !Ref VpcBRouteTableExportName
       DestinationCidrBlock: !Ref VpcACidr
       VpcPeeringConnectionId: !Ref VPCPeeringConnection
 
