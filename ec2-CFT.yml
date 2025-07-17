@@ -1,7 +1,7 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >
   This template launches an EC2 instance into a selected subnet within a given VPC.
-  It uses region-based AMI mapping to dynamically select the appropriate Amazon Linux 2 image.
+  It uses region-based AMI mapping to dynamically select the appropriate ubuntu image.
 
 Mappings:
   RegionMap:
