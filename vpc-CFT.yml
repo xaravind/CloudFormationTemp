@@ -24,10 +24,15 @@ Parameters:
     Type: String
     Default: 10.0.0.0/24
 
-  PrivateSubnetCIDR:
+  PrivateSubnetCIDR1:
     Description: Please enter the IP range (CIDR notation) for the private subnet in the first Availability Zone
     Type: String
     Default: 10.0.16.0/24
+
+  PrivateSubnetCIDR2:
+    Description: Please enter the IP range (CIDR notation) for the private subnet in the first Availability Zone
+    Type: String
+    Default: 10.0.32.0/24
 
 #################################################################
 #       Resources - (VPC, IGW , SUBNETS, EIP, NAT )             #
@@ -68,16 +73,27 @@ Resources:
         - Key: Name
           Value: !Sub "${Name}-public-subnet"
 
-  PrivateSubnet:
+  PrivateSubnet1:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
       AvailabilityZone: !Select [ 1, !GetAZs  '' ]
-      CidrBlock: !Ref PrivateSubnetCIDR
+      CidrBlock: !Ref PrivateSubnetCIDR1
       MapPublicIpOnLaunch: false
       Tags:
         - Key: Name
-          Value: !Sub "${Name}-private-Subnet"
+          Value: !Sub "${Name}-private1-Subnet"
+
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 1, !GetAZs  '' ]
+      CidrBlock: !Ref PrivateSubnetCIDR2
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub "${Name}-private2-Subnet"
 
   NatGatewayEIP:
     Type: AWS::EC2::EIP
@@ -113,26 +129,48 @@ Resources:
       RouteTableId: !Ref PublicRouteTable
       SubnetId: !Ref PublicSubnet
 
-  PrivateRouteTable:
+  PrivateRouteTable1:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref VPC
       Tags:
         - Key: Name
-          Value: !Sub "${Name}-pvt-rtb"
+          Value: !Sub "${Name}-pvt1-rtb"
 
-  DefaultPrivateRoute:
+  DefaultPrivateRoute1:
     Type: AWS::EC2::Route
     Properties:
-      RouteTableId: !Ref PrivateRouteTable
+      RouteTableId: !Ref PrivateRouteTable1
       DestinationCidrBlock: 0.0.0.0/0
       NatGatewayId: !Ref NatGateway
 
-  PrivateSubnetRouteTableAssociation:
+  PrivateSubnetRouteTableAssociation1:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      RouteTableId: !Ref PrivateRouteTable
-      SubnetId: !Ref PrivateSubnet
+      RouteTableId: !Ref PrivateRouteTable1
+      SubnetId: !Ref PrivateSubnet1
+
+
+  PrivateRouteTable2:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub "${Name}-pvt2-rtb"
+
+  DefaultPrivateRoute2:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable2
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway
+
+  PrivateSubnetRouteTableAssociation2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable2
+      SubnetId: !Ref PrivateSubnet2
 
 #################################################################
 #                       OUTPUTS                              #
@@ -145,4 +183,15 @@ Outputs:
 
   PublicSubnets:
     Description: A list of the public subnets
-    Value: !Ref PublicSubnet
+    Value: !Ref PublicSubnet 
+
+  PrivateSubnets1:
+    Description: A list of the  first private subnet
+    Value: !Ref PrivateSubnet1
+
+  PrivateSubnets2:
+    Description: A list of the second private subnet
+    Value: !Ref PrivateSubnet2
+
+
+
